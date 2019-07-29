@@ -50,7 +50,7 @@ main()
 ```
 
 ## API
-#### Classes
+### Classes
 
 <dl>
 <dt><a href="#Client">Client</a></dt>
@@ -58,7 +58,7 @@ main()
 </dd>
 </dl>
 
-#### Functions
+### Functions
 
 <dl>
 <dt><a href="#finalize">finalize(msg_dict, session_id, name, error, opts)</a> ⇒ <code>Object</code> | <code>string</code> | <code>Buffer</code></dt>
@@ -72,7 +72,7 @@ main()
 
 <a name="Client"></a>
 
-#### Client
+### Client
 A class representing a HappyPanda X client
 
 **Kind**: global class  
@@ -93,7 +93,7 @@ A class representing a HappyPanda X client
 
 <a name="new_Client_new"></a>
 
-##### new Client(params)
+#### new Client(params)
 
 | Param | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -105,19 +105,19 @@ A class representing a HappyPanda X client
 
 <a name="Client+alive"></a>
 
-##### client.alive() ⇒ <code>boolean</code>
+#### client.alive() ⇒ <code>boolean</code>
 Check if server is still alive
 
 **Kind**: instance method of [<code>Client</code>](#Client)  
 <a name="Client+ready"></a>
 
-##### client.ready() ⇒ <code>boolean</code>
+#### client.ready() ⇒ <code>boolean</code>
 Check if client is ready to exchange messages with server
 
 **Kind**: instance method of [<code>Client</code>](#Client)  
 <a name="Client+set_server"></a>
 
-##### client.set\_server(host, port)
+#### client.set\_server(host, port)
 Set server address
 
 **Kind**: instance method of [<code>Client</code>](#Client)  
@@ -129,19 +129,19 @@ Set server address
 
 <a name="Client+is_connected"></a>
 
-##### client.is\_connected() ⇒ <code>boolean</code>
+#### client.is\_connected() ⇒ <code>boolean</code>
 Check if the client is still connected to the server
 
 **Kind**: instance method of [<code>Client</code>](#Client)  
 <a name="Client+close"></a>
 
-##### client.close()
+#### client.close()
 Close the connection
 
 **Kind**: instance method of [<code>Client</code>](#Client)  
 <a name="Client+handshake"></a>
 
-##### client.handshake(params) ⇒ <code>Promise</code>
+#### client.handshake(params) ⇒ <code>Promise</code>
 Perfom a handshake with the HPX server
 
 **Kind**: instance method of [<code>Client</code>](#Client)  
@@ -160,7 +160,7 @@ Perfom a handshake with the HPX server
 
 <a name="Client+request_auth"></a>
 
-##### client.request\_auth(ignore_err) ⇒ <code>Promise</code>
+#### client.request\_auth(ignore_err) ⇒ <code>Promise</code>
 Basically a re-login
 
 **Kind**: instance method of [<code>Client</code>](#Client)  
@@ -172,7 +172,7 @@ Basically a re-login
 
 <a name="Client+connect"></a>
 
-##### client.connect(params) ⇒ <code>Promise</code>
+#### client.connect(params) ⇒ <code>Promise</code>
 Connect to HPX server
 
 **Kind**: instance method of [<code>Client</code>](#Client)  
@@ -186,7 +186,7 @@ Connect to HPX server
 
 <a name="Client+send"></a>
 
-##### client.send(msg) ⇒ <code>Promise</code>
+#### client.send(msg) ⇒ <code>Promise</code>
 Like The [send_raw](send_raw), but as a convenience, this method will wrap your message into the required message structure HPX expects and automatically sets the session and name
 
 **Kind**: instance method of [<code>Client</code>](#Client)  
@@ -199,7 +199,7 @@ Like The [send_raw](send_raw), but as a convenience, this method will wrap your 
 
 <a name="Client+send_raw"></a>
 
-##### client.send\_raw(msg) ⇒ <code>Promise</code>
+#### client.send\_raw(msg) ⇒ <code>Promise</code>
 Send json-compatible Object to server. Receive json-compatible Object from server.
 
 Note that this method will not modify your message and expects you to add the name and session yourself. See the [finalize](#finalize) function.
@@ -214,7 +214,7 @@ Note that this method will not modify your message and expects you to add the na
 
 <a name="finalize"></a>
 
-#### finalize(msg_dict, session_id, name, error, opts) ⇒ <code>Object</code> \| <code>string</code> \| <code>Buffer</code>
+### finalize(msg_dict, session_id, name, error, opts) ⇒ <code>Object</code> \| <code>string</code> \| <code>Buffer</code>
 A helper function that will wrap your message up like this:
 ```
 msg = {
