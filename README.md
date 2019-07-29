@@ -50,7 +50,6 @@ main()
 ```
 
 ## API
-
 #### Classes
 
 <dl>
@@ -62,7 +61,7 @@ main()
 #### Functions
 
 <dl>
-<dt><a href="#finalize">finalize(msg_dict, session_id, name, error, opts)</a> ÔçÆ <code>Object</code> | <code>string</code> | <code>Buffer</code></dt>
+<dt><a href="#finalize">finalize(msg_dict, session_id, name, error, opts)</a> ⇒ <code>Object</code> | <code>string</code> | <code>Buffer</code></dt>
 <dd><p>A helper function that will wrap your message up like this:</p>
 <pre><code>msg = {
      &#39;session&#39;: session_id,
@@ -80,17 +79,17 @@ A class representing a HappyPanda X client
 
 * [Client](#Client)
     * [new Client(params)](#new_Client_new)
-    * [.alive()](#Client+alive) ÔçÆ <code>boolean</code>
-    * [.ready()](#Client+ready) ÔçÆ <code>boolean</code>
+    * [.alive()](#Client+alive) ⇒ <code>boolean</code>
+    * [.ready()](#Client+ready) ⇒ <code>boolean</code>
     * [.set_server(host, port)](#Client+set_server)
-    * [.is_connected()](#Client+is_connected) ÔçÆ <code>boolean</code>
+    * [.is_connected()](#Client+is_connected) ⇒ <code>boolean</code>
     * [.close()](#Client+close)
     * _async_
-        * [.handshake(params)](#Client+handshake) ÔçÆ <code>Promise</code>
-        * [.request_auth(ignore_err)](#Client+request_auth) ÔçÆ <code>Promise</code>
-        * [.connect(params)](#Client+connect) ÔçÆ <code>Promise</code>
-        * [.send(msg)](#Client+send) ÔçÆ <code>Promise</code>
-        * [.send_raw(msg)](#Client+send_raw) ÔçÆ <code>Promise</code>
+        * [.handshake(params)](#Client+handshake) ⇒ <code>Promise</code>
+        * [.request_auth(ignore_err)](#Client+request_auth) ⇒ <code>Promise</code>
+        * [.connect(params)](#Client+connect) ⇒ <code>Promise</code>
+        * [.send(msg)](#Client+send) ⇒ <code>Promise</code>
+        * [.send_raw(msg)](#Client+send_raw) ⇒ <code>Promise</code>
 
 <a name="new_Client_new"></a>
 
@@ -106,13 +105,13 @@ A class representing a HappyPanda X client
 
 <a name="Client+alive"></a>
 
-##### client.alive() ÔçÆ <code>boolean</code>
+##### client.alive() ⇒ <code>boolean</code>
 Check if server is still alive
 
 **Kind**: instance method of [<code>Client</code>](#Client)  
 <a name="Client+ready"></a>
 
-##### client.ready() ÔçÆ <code>boolean</code>
+##### client.ready() ⇒ <code>boolean</code>
 Check if client is ready to exchange messages with server
 
 **Kind**: instance method of [<code>Client</code>](#Client)  
@@ -130,7 +129,7 @@ Set server address
 
 <a name="Client+is_connected"></a>
 
-##### client.is\_connected() ÔçÆ <code>boolean</code>
+##### client.is\_connected() ⇒ <code>boolean</code>
 Check if the client is still connected to the server
 
 **Kind**: instance method of [<code>Client</code>](#Client)  
@@ -142,7 +141,7 @@ Close the connection
 **Kind**: instance method of [<code>Client</code>](#Client)  
 <a name="Client+handshake"></a>
 
-##### client.handshake(params) ÔçÆ <code>Promise</code>
+##### client.handshake(params) ⇒ <code>Promise</code>
 Perfom a handshake with the HPX server
 
 **Kind**: instance method of [<code>Client</code>](#Client)  
@@ -161,7 +160,7 @@ Perfom a handshake with the HPX server
 
 <a name="Client+request_auth"></a>
 
-##### client.request\_auth(ignore_err) ÔçÆ <code>Promise</code>
+##### client.request\_auth(ignore_err) ⇒ <code>Promise</code>
 Basically a re-login
 
 **Kind**: instance method of [<code>Client</code>](#Client)  
@@ -173,7 +172,7 @@ Basically a re-login
 
 <a name="Client+connect"></a>
 
-##### client.connect(params) ÔçÆ <code>Promise</code>
+##### client.connect(params) ⇒ <code>Promise</code>
 Connect to HPX server
 
 **Kind**: instance method of [<code>Client</code>](#Client)  
@@ -187,7 +186,7 @@ Connect to HPX server
 
 <a name="Client+send"></a>
 
-##### client.send(msg) ÔçÆ <code>Promise</code>
+##### client.send(msg) ⇒ <code>Promise</code>
 Like The [send_raw](send_raw), but as a convenience, this method will wrap your message into the required message structure HPX expects and automatically sets the session and name
 
 **Kind**: instance method of [<code>Client</code>](#Client)  
@@ -200,7 +199,7 @@ Like The [send_raw](send_raw), but as a convenience, this method will wrap your 
 
 <a name="Client+send_raw"></a>
 
-##### client.send\_raw(msg) ÔçÆ <code>Promise</code>
+##### client.send\_raw(msg) ⇒ <code>Promise</code>
 Send json-compatible Object to server. Receive json-compatible Object from server.
 
 Note that this method will not modify your message and expects you to add the name and session yourself. See the [finalize](#finalize) function.
@@ -215,7 +214,7 @@ Note that this method will not modify your message and expects you to add the na
 
 <a name="finalize"></a>
 
-#### finalize(msg_dict, session_id, name, error, opts) ÔçÆ <code>Object</code> \| <code>string</code> \| <code>Buffer</code>
+#### finalize(msg_dict, session_id, name, error, opts) ⇒ <code>Object</code> \| <code>string</code> \| <code>Buffer</code>
 A helper function that will wrap your message up like this:
 ```
 msg = {
