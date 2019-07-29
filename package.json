@@ -1,0 +1,31 @@
+{
+  "name": "happypandax-client",
+  "version": "1.0.0",
+  "description": "A javascript client library for communicating with HappyPanda X servers",
+  "main": "client.js",
+  "scripts": {
+    "test": "test/test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/happypandax/js-client.git"
+  },
+  "keywords": [
+    "hpx",
+    "happypandax",
+    "client",
+    "socket",
+    "server",
+    "manga",
+    "comics",
+    "doujinshi",
+    "doujin",
+    "happypanda"
+  ],
+  "author": "Twiddly",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/happypandax/js-client/issues"
+  },
+  "homepage": "https://github.com/happypandax/js-client#readme",
+}
