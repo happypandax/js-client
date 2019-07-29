@@ -171,10 +171,11 @@ class HPXTransform extends Transform {
 class Client {
     /**
      * @param  {Object} params - optional params
-     * @param  [params.name="js-client"] {string} - name of client
+     * @param  [params.name=js-client] {string} - name of client
      * @param  [params.host] {string} - server host
      * @param  [params.port] {integer} - server port
      * @param  [params.session_id] {string} - a server session id
+     * @param  [params.timeout] {integer} - connection timeout
      */
     constructor(params) {
         params = params || {}
@@ -182,6 +183,7 @@ class Client {
         let host = params.host
         let port = params.port
         let session_id = params.session_id
+        let timeout = params.timeout
 
         this.name = name || "js-client"
         this._server = [host, port] // [host, port]
@@ -201,7 +203,7 @@ class Client {
         })
         this._stream.on("data", this._recv.bind(this))
         
-        this.timeout = 10
+        this.timeout = timeout || 10
         this._sock = null;
 
         this._current_callback = null
@@ -338,7 +340,7 @@ class Client {
     /**
      * Connect to HPX server
      * @category async
-     * @param  {object} params - optinal params
+     * @param  {object} params - optional params
      * @param  [params.host] {string} - server host
      * @param  [params.port] {integer} - server port
      * @returns {Promise}
@@ -400,7 +402,7 @@ class Client {
         this._first_message = true
     }
     /**
-     * Like The {@link send_raw}, but as a convenience, this method will wrap your message into the required message structure HPX expects and automatically sets the session and name
+     * Like {@link send_raw}, but as a convenience, this method will wrap your message into the required message structure HPX expects and automatically sets the session and name
      * @category async
      * @param  {Array} msg - this is an array of Object's
      * @returns {Promise}
