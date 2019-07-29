@@ -1,6 +1,6 @@
 {
   "name": "happypandax-client",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A javascript client library for communicating with HappyPanda X servers",
   "main": "client.js",
   "scripts": {
