@@ -8,23 +8,22 @@
 Install and update npm or yarn
 
 ```
-$ npm install happypandax-client
+$ yarn add happypandax-client
 ```
 
 ## Example
 
 Get up and running fast:
 
-```javascript
-hpxclient = require('happypandax-client')
+```typescript
+import Client from 'happypandax-client'
 
-let c = new hpxclient.Client("my-client")
+const c = new Client({name: "my-client"})
 c.connect({host:"localhost", port:7007})
     .then(function() { c.handshake({user:null, password:null})
     .then(function() { c.send([{fname:"get_version"}])
     .then(function(data) {
             console.log(data)
-            console.log(data.data[0].data)
         })
     })
 })
