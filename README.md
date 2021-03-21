@@ -25,16 +25,16 @@ c.connect({host:"localhost", port:7007})
     .then(function(data) {
             console.log(data)
         })
-    })
+    }).finally(() => c.close())
 })
 ```
 
 or, using *Async/Await* syntax:
 
-```javascript
-hpxclient = require('happypandax-client')
+```typescript
+import Client from 'happypandax-client'
 
-let c = new hpxclient.Client("my-client")
+let c = new Client({name: "my-client"})
 
 async function main() {
     await c.connect({host:"localhost", port:7007})
@@ -42,7 +42,7 @@ async function main() {
 
     let data = await c.send([{fname:"get_version"}])
     console.log(data)
-    console.log(data.data[0].data)
+    c.close()
 }
 
 main()
