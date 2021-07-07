@@ -49,6 +49,23 @@ main()
 ```
 
 ## API
+
+#### Logging
+```typescript
+import { log } from 'happypandax-client'
+
+// Enable/disable logging
+log.enabled = false
+
+// Custom logger
+log.logger = {
+    debug: console.debug,
+    info: console.info,
+    warning: console.warn,
+    error: console.error
+}
+```
+
 ### Classes
 
 <dl>

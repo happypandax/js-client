@@ -1,6 +1,6 @@
-import * as net from "net";
-import * as zlib from "zlib";
-import { Transform, TransformOptions } from "stream";
+import * as net from 'net';
+import { Transform, TransformOptions } from 'stream';
+import * as zlib from 'zlib';
 
 const encoding = "utf8";
 
@@ -17,21 +17,31 @@ const exception_codes = {
   ServerDisconnectError: 502,
 };
 
-const log = {
+export interface CustomLogger {
+  debug: (m: string) => void;
+  info: (m: string) => void;
+  warning: (m: string) => void;
+  error: (m: string) => void;
+}
+
+export const log = {
+  enabled: true,
+  logger: (undefined as any) as CustomLogger,
   d: function (msg: string) {
-    console.debug(msg);
+    if (!this.enabled) return;
+    this.logger ? this.logger.debug(msg) : console.debug(msg);
   },
   i: function (msg: string) {
-    console.log(msg);
+    if (!this.enabled) return;
+    this.logger ? this.logger.debug(msg) : console.info(msg);
   },
   w: function (msg: string) {
-    console.warn(msg);
+    if (!this.enabled) return;
+    this.logger ? this.logger.debug(msg) : console.warn(msg);
   },
   e: function (msg: string) {
-    console.error(msg);
-  },
-  c: function (msg: string) {
-    console.error(msg);
+    if (!this.enabled) return;
+    this.logger ? this.logger.debug(msg) : console.error(msg);
   },
 };
 
@@ -56,6 +66,7 @@ export class AuthWrongCredentialsError extends AuthError {}
 export class AuthRequiredError extends AuthError {}
 export class AuthMissingCredentials extends AuthError {}
 export class ClientError extends ServerError {}
+export class TimoutError extends ClientError {}
 export class ConnectionError extends ClientError {}
 export class ServerDisconnectError extends ConnectionError {}
 
@@ -178,8 +189,14 @@ type Version = {
   torrent: [number, number, number];
 };
 
-export type ServerMsg = { session: string; name: string; data: AnyJson };
 export type ServerErrorMsg = { code: number; msg: string };
+export type ServerMsg = {
+  session: string;
+  name: string;
+  data: AnyJson;
+  error?: ServerErrorMsg;
+};
+export type ServerFunctionMsg = { fname: string } & JsonMap;
 
 /**
  * A class representing a HappyPanda X client
@@ -244,7 +261,7 @@ export class Client {
     });
     this._stream.on("data", this._recv.bind(this));
 
-    this.timeout = timeout || 10;
+    this.timeout = timeout || 2000;
     this._sock = null;
 
     this._first_message = true;
@@ -402,13 +419,12 @@ export class Client {
    * @param  [params.port] {integer} - server port
    * @returns {Promise}
    */
-  async connect(params: { host: string; port: number }) {
-    params = params || {};
-    let host = params.host;
-    let port = params.port;
+  async connect(params?: { host?: string; port?: number }) {
+    let host = params?.host;
+    let port = params?.port;
     let p = new Promise((resolve, reject) => {
       if (!this._alive && !this._connecting) {
-        if (host !== undefined) {
+        if (host !== undefined && port !== undefined) {
           this._server = [host, port];
         }
         this._on_connect_promise_resolves.unshift([resolve, reject]);
@@ -427,7 +443,18 @@ export class Client {
     return this.alive();
   }
 
-  _on_timeout() {}
+  _on_timeout() {
+    const err = new TimoutError("timeout");
+    if (this._on_connect_promise_resolves.length) {
+      let proms = this._on_connect_promise_resolves.shift();
+      proms?.[1](err);
+    }
+
+    if (this._promise_resolves.length) {
+      let proms = this._promise_resolves.shift();
+      proms?.[1](err);
+    }
+  }
 
   _on_connect() {
     log.d(
@@ -441,7 +468,7 @@ export class Client {
     log.e(error.message);
     if (this._on_connect_promise_resolves.length) {
       let proms = this._on_connect_promise_resolves.shift();
-      proms?.[0](error);
+      proms?.[1](error);
     }
     this._disconnect();
   }
