@@ -196,7 +196,11 @@ export type ServerMsg = {
   data: AnyJson;
   error?: ServerErrorMsg;
 };
-export type ServerFunctionMsg = { fname: string } & JsonMap;
+export type ServerFunctionMsg = {
+  fname: string;
+  data: AnyJson;
+  error?: ServerErrorMsg;
+};
 
 /**
  * A class representing a HappyPanda X client
