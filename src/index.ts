@@ -87,21 +87,23 @@ export type Msg = JsonMap;
  *      'data': data, # <--- your message is put here
  *   }
  * ```
- * @param  {Object} msg_dict - message to wrap
+ * @param  {AnyJson} msg_dict - message to wrap
  * @param  {string} session_id - optional, session id
  * @param  {string} name - name of client
- * @param  {Object} error - error message object to include in the final message
+ * @param  {ServerError} error - error message object to include in the final message
  * @param  {Object} opts - optional options
  * @param  [opts.to_json] {boolean} - convert the final message to json string
  * @param  [opts.to_bytes] {boolean} - convert the final message to bytes buffer
- * @return {Object|string|Buffer}
+ * @param  {AnyJson} msg_id - optional message id
+ * @return {ServerMsg|string|Buffer}
  */
 export function finalize(
   msg_dict: AnyJson,
   session_id?: string | null,
   name?: string,
-  error?: Msg,
-  opts?: Partial<{ to_json: boolean; to_bytes: boolean }>
+  error?: ServerErrorMsg,
+  opts?: Partial<{ to_json: boolean; to_bytes: boolean }>,
+  msg_id?: AnyJson
 ) {
   session_id = session_id || "";
   if (opts === undefined) opts = {};
@@ -112,20 +114,19 @@ export function finalize(
   if (opts.to_bytes === true) to_json = true;
 
   let msg = {
+    __id__: msg_id,
     session: session_id,
     name: name ? name : "js-client",
     data: msg_dict,
-  } as Msg;
+  } as ServerMsg;
 
   if (error) msg.error = error;
 
-  let rmsg: string | Buffer | Msg = msg;
+  if (to_json) return JSON.stringify(msg);
 
-  if (to_json) rmsg = JSON.stringify(msg);
+  if (to_bytes) return Buffer.from((msg as any) as string, encoding);
 
-  if (to_bytes) rmsg = Buffer.from(rmsg as string, encoding);
-
-  return rmsg;
+  return msg;
 }
 
 class HPXTransform extends Transform {
@@ -166,20 +167,20 @@ class HPXTransform extends Transform {
     const { chunk: data, remaining_buffer, eof } = this._end_of_msg(
       this._buffer
     );
+
     if (eof) {
       this._buffer = remaining_buffer;
-    }
 
-    if (data) {
-      zlib.unzip(data, (zip_err, zip_buffer) => {
-        if (!zip_err) {
-          log.d(
-            "Recieved " + zip_buffer.length.toString() + " bytes from server"
-          );
-          callback(err, zip_buffer);
-        } else log.e(zip_err.message);
-      });
-    } else callback(err);
+      if (data) {
+        zlib.unzip(data, (zip_err, zip_buffer) => {
+          if (!zip_err) {
+            callback(err, zip_buffer);
+          } else log.e(zip_err.message);
+        });
+      } else callback(err);
+    } else {
+      callback(err);
+    }
   }
 }
 
@@ -191,6 +192,7 @@ type Version = {
 
 export type ServerErrorMsg = { code: number; msg: string };
 export type ServerMsg = {
+  __id__?: string | number;
   session: string;
   name: string;
   data: AnyJson;
@@ -207,6 +209,7 @@ export type ServerFunctionMsg = {
  */
 export class Client {
   name: string;
+  _id_counter: number;
   _alive: boolean;
   _ready: boolean;
   _buffer: Buffer;
@@ -220,17 +223,19 @@ export class Client {
   _stream: HPXTransform;
   timeout: number;
   _sock: net.Socket | null;
-  _first_message: boolean;
   _connecting: boolean;
-  _resolved_connected_promises: boolean;
-  _on_connect_promise_resolves: [(v: any) => void, (v: any) => void][];
-  _promise_resolves: [(v: any) => void, (v: any) => void][];
+  __data_promises_order: (string | number)[];
+  __data_promises: {
+    [k: string]: [resolve: (v: any) => void, reject: (v: any) => void];
+  };
 
   /**
    * @param  {Object} params - optional params
    * @param  [params.name=js-client] {string} - name of client
    * @param  [params.host] {string} - server host
    * @param  [params.port] {integer} - server port
+   * @param  [params.user] {string} - username
+   * @param  [params.password] {string} - password
    * @param  [params.session_id] {string} - a server session id
    * @param  [params.timeout] {integer} - connection timeout
    */
@@ -240,9 +245,13 @@ export class Client {
     port,
     session_id,
     timeout,
+    user,
+    password,
   }: Partial<{
     name: string;
     host: string;
+    user: string | null;
+    password: string | null;
     port: number;
     session_id: string;
     timeout: number;
@@ -256,9 +265,10 @@ export class Client {
     this.version = null;
     this.guest_allowed = false;
     this._accepted = false;
+    this._id_counter = 0;
 
-    this._last_user = "";
-    this._last_pass = "";
+    this._last_user = user ?? "";
+    this._last_pass = password ?? "";
 
     this._stream = new HPXTransform(this.name, {
       defaultEncoding: encoding,
@@ -268,11 +278,9 @@ export class Client {
     this.timeout = timeout || 2000;
     this._sock = null;
 
-    this._first_message = true;
-    this._promise_resolves = [];
-    this._on_connect_promise_resolves = [];
+    this.__data_promises = {};
+    this.__data_promises_order = [];
     this._connecting = false;
-    this._resolved_connected_promises = false;
     this._create_socket();
   }
 
@@ -300,6 +308,48 @@ export class Client {
    */
   ready() {
     return this._ready;
+  }
+
+  get _connect_msg_id() {
+    return this.name + "_connect";
+  }
+
+  _next_id() {
+    this._id_counter = (this._id_counter + 1) % 99999;
+    return this.name + "_msg_" + this._id_counter;
+  }
+
+  _add_data_promise(
+    msg_id: string | number,
+    resolve: (v: any) => void,
+    reject: (v: any) => void
+  ) {
+    this.__data_promises[msg_id] = [resolve, reject];
+    this.__data_promises_order.push(msg_id);
+  }
+
+  _get_data_promise(msg_id: string | number | undefined) {
+    if (!msg_id) return;
+    const v = this.__data_promises[msg_id];
+    if (v) {
+      delete this.__data_promises[msg_id];
+      const idx = this.__data_promises_order.indexOf(msg_id);
+      if (idx > -1) {
+        this.__data_promises_order.splice(idx, 1);
+      }
+    }
+    return v;
+  }
+
+  _get_earliest_data_promise() {
+    const msg_id = this.__data_promises_order.shift();
+    if (msg_id) {
+      const v = this.__data_promises[msg_id];
+      if (v) {
+        delete this.__data_promises[msg_id];
+      }
+      return v;
+    }
   }
 
   _server_info(data?: Msg) {
@@ -335,12 +385,16 @@ export class Client {
       user: string | null;
       password: string | null;
       ignore_err: boolean;
-      data: Msg;
     }>
   ) {
-    let data = params.data;
-    let user = params.user || null;
-    let password: string | null | undefined = params.password;
+    let user = params.user;
+    let password = params.password;
+
+    if (user === undefined) {
+      user = this._last_user;
+      password = this._last_pass;
+    }
+
     let ignore_err = params.ignore_err;
 
     if (this.alive()) {
@@ -350,6 +404,23 @@ export class Client {
         this._last_user = user;
         this._last_pass = password;
       }
+
+      let d = {} as { user: string; password: typeof password };
+      if (user) {
+        d.user = user;
+        d.password = password;
+      }
+
+      log.d(
+        `Client '${this.name}' handshaking server at ${JSON.stringify(
+          this._server
+        )}`
+      );
+
+      let data = await this.send_raw(
+        finalize(d, undefined, this.name, undefined) as ServerMsg
+      );
+
       if (!ignore_err && data) {
         let serv_error = data.error as ServerErrorMsg;
         if (serv_error) {
@@ -368,24 +439,15 @@ export class Client {
         }
       }
 
-      if (!data) {
-        let d = {} as { user: string; password: typeof password };
-        if (user) {
-          d.user = user;
-          d.password = password;
-        }
-        let serv_data = await this.send_raw(
-          finalize(d, undefined, this.name, undefined) as Msg
-        );
-        await this.handshake({ data: serv_data, ignore_err: ignore_err });
-      } else if (data) {
-        let serv_data = data.data;
-        if (serv_data === "Authenticated") {
-          this.session = data.session as string;
-          this._accepted = true;
-        }
+      let serv_data = data.data;
+      if (serv_data === "Authenticated") {
+        this.session = data.session as string;
+        this._accepted = true;
+        return true;
       }
     }
+
+    return false;
   }
   /**
    * Basically a re-login
@@ -426,58 +488,75 @@ export class Client {
   async connect(params?: { host?: string; port?: number }) {
     let host = params?.host;
     let port = params?.port;
-    let p = new Promise((resolve, reject) => {
+    let p = new Promise<undefined | JsonMap>((resolve, reject) => {
       if (!this._alive && !this._connecting) {
         if (host !== undefined && port !== undefined) {
           this._server = [host, port];
         }
-        this._on_connect_promise_resolves.unshift([resolve, reject]);
         log.d(
-          "Client connecting to server at: " + JSON.stringify(this._server)
+          `Client '${this.name}' connecting to server at: ${JSON.stringify(
+            this._server
+          )}`
         );
+        const sess = this.session;
         this._connecting = true;
+        this._add_data_promise(this._connect_msg_id, resolve, reject);
         this._sock?.connect(this._server[1], this._server[0], () => {
           this._connecting = false;
           this._alive = true;
-          if (this.session) this._accepted = true;
+          if (sess) this._accepted = true;
         });
-      } else resolve(false);
+      } else
+        reject(
+          Error(`Client '${this.name}' already connected or trying to connect`)
+        );
     });
-    await p;
-    return this.alive();
+    return p;
   }
 
   _on_timeout() {
     const err = new TimoutError("timeout");
-    if (this._on_connect_promise_resolves.length) {
-      let proms = this._on_connect_promise_resolves.shift();
-      proms?.[1](err);
+    const connect_p = this._get_data_promise(this._connect_msg_id);
+    if (connect_p) {
+      return connect_p[1](err);
     }
 
-    if (this._promise_resolves.length) {
-      let proms = this._promise_resolves.shift();
-      proms?.[1](err);
+    const p = this._get_earliest_data_promise();
+    if (p) {
+      return p[1](err);
     }
   }
 
   _on_connect() {
     log.d(
-      "Client successfully connected to server at: " +
-        JSON.stringify(this._server)
+      `Client '${
+        this.name
+      }' successfully connected to server at: ${JSON.stringify(this._server)}`
     );
   }
 
   _on_error(error: Error) {
     this._connecting = false;
-    log.e(error.message);
-    if (this._on_connect_promise_resolves.length) {
-      let proms = this._on_connect_promise_resolves.shift();
-      proms?.[1](error);
+    log.e(`An error occured in client '${this.name}': ${error.message}`);
+    const connect_p = this._get_data_promise(this._connect_msg_id);
+    if (connect_p) {
+      return connect_p[1](error);
     }
+
+    const p = this._get_earliest_data_promise();
+    if (p) {
+      return p[1](error);
+    }
+
     this._disconnect();
   }
 
   _on_disconnect() {
+    log.d(
+      `Client '${this.name}' disconnected from server at: ${JSON.stringify(
+        this._server
+      )}`
+    );
     this._disconnect();
   }
 
@@ -486,7 +565,6 @@ export class Client {
     this._accepted = false;
     this.session = "";
     this._ready = false;
-    this._first_message = true;
   }
   /**
    * Like {@link send_raw}, but as a convenience, this method will wrap your message into the required message structure HPX expects and automatically sets the session and name
@@ -496,11 +574,20 @@ export class Client {
    * @fullfil {Object} - message from server
    */
   async send(msg: JsonArray) {
+    const msg_id = this._next_id();
     return this._send(
-      finalize(msg, this.session, this.name, undefined, {
-        to_bytes: true,
-        to_json: true,
-      }) as Buffer
+      finalize(
+        msg,
+        this.session,
+        this.name,
+        undefined,
+        {
+          to_bytes: true,
+          to_json: true,
+        },
+        msg_id
+      ) as Buffer,
+      msg_id
     );
   }
   /**
@@ -512,23 +599,27 @@ export class Client {
    * @returns {Promise}
    * @fullfil {Object} - message from server
    */
-  async send_raw(msg: Msg) {
-    return this._send(Buffer.from(JSON.stringify(msg), encoding));
+  async send_raw(msg: ServerMsg) {
+    if (!msg.__id__) {
+      msg.__id__ = this._next_id();
+    }
+    return this._send(Buffer.from(JSON.stringify(msg), encoding), msg.__id__);
   }
 
-  async _send(msg_bytes: Buffer) {
+  async _send(msg_bytes: Buffer, msg_id: string | number) {
     let p = new Promise<ServerMsg>((resolve, reject) => {
       if (!this._alive) {
         throw new ClientError(
-          "Client '" + this.name + "' is not connected to server"
+          `Client '${this.name}' is not connected to server`
         );
       }
 
       log.d(
-        "Sending " +
-          msg_bytes.length.toString() +
-          " bytes to server " +
-          JSON.stringify(this._server)
+        `Client '${
+          this.name
+        }' sending ${msg_bytes.length.toString()} bytes to server ${JSON.stringify(
+          this._server
+        )}`
       );
 
       zlib.gzip(msg_bytes, (err, buffer) => {
@@ -538,7 +629,7 @@ export class Client {
         } else {
           reject(err);
         }
-        this._promise_resolves.unshift([resolve, reject]);
+        this._add_data_promise(msg_id, resolve, reject);
       });
     });
 
@@ -546,36 +637,41 @@ export class Client {
   }
 
   _recv(data: Buffer) {
-    let parsed_data = JSON.parse(data.toString());
-    if (this._first_message) {
-      this._first_message = false;
-      this._server_info(parsed_data);
-    }
-
-    if (this._on_connect_promise_resolves.length) {
-      while (this._on_connect_promise_resolves.length) {
-        let proms = this._on_connect_promise_resolves.shift();
-        proms?.[0](true);
-      }
-      if (!this._resolved_connected_promises) {
-        this._resolved_connected_promises = true;
-        return;
-      }
-    }
-
-    if (this._promise_resolves.length) {
-      let proms = this._promise_resolves.shift();
-      proms?.[0](parsed_data);
+    if (!this._alive) {
       return;
+    }
+
+    log.d(
+      `Client '${
+        this.name
+      }' recieved ${data.length.toString()} bytes from server`
+    );
+
+    let parsed_data: ServerMsg = JSON.parse(data.toString());
+
+    const connect_p = this._get_data_promise(this._connect_msg_id);
+    if (connect_p) {
+      this._server_info(parsed_data);
+      return connect_p[0](parsed_data);
+    }
+
+    const p = this._get_data_promise(parsed_data.__id__);
+    if (p) {
+      return p[0](parsed_data);
     }
   }
   /**
    * Close the connection
+   * @returns {Promise}
    */
-  close() {
-    log.d("Closing connection to server");
+  async close() {
+    log.d(`Client '${this.name}' closing connection to server`);
     this._disconnect();
-    this._sock?.end();
+    return new Promise<void>((resolve, reject) => {
+      this._sock?.end(() => {
+        resolve();
+      });
+    });
   }
 }
 export default Client;

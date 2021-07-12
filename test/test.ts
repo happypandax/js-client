@@ -1,14 +1,17 @@
-import Client from "../dist";
+import Client from '../dist';
 
 let c = new Client({ name: "my-client" });
 
 async function main() {
-  await c.connect({ host: "localhost", port: 7008 });
+  const d = await c.connect({ host: "localhost", port: 7007 });
+
+  console.log(d);
+
   await c.handshake({ user: null, password: null });
 
   let data = await c.send([{ fname: "get_version" }]);
   console.log(data);
-  c.close();
+  await c.close();
 }
 
-main();
+main().catch((e) => console.log("Test ended with error: " + e.toString()));
