@@ -8,7 +8,7 @@
     "/dist"
   ],
   "scripts": {
-    "test": "yarn build && ts-node test/test.ts",
+    "test": "jest",
     "build": "tsc",
     "docs": "jsdoc2md --configure ./jsdoc2md.json --heading-depth 4 ./src/index.ts",
     "prepare": "yarn build"
@@ -39,6 +39,8 @@
     "@babel/preset-env": "^7.14.7",
     "@babel/preset-typescript": "^7.14.5",
     "@types/node": "^14.14.35",
+    "@types/jest": "^26.0.24",
+    "jest": "^27.0.6",
     "jsdoc-babel": "^0.5.0",
     "jsdoc-to-markdown": "^7.0.1",
     "ts-node": "^9.1.1",

@@ -140,17 +140,17 @@ class HPXTransform extends Transform {
   }
 
   _end_of_msg(buffer: Buffer) {
-    let chunk = buffer;
+    let remaining_buffer = buffer;
     let idx = buffer.indexOf(postfix);
     let eof = false;
-    let remaining_buffer = Buffer.from("", encoding);
+    let data = Buffer.from("", encoding);
     if (idx !== -1) {
-      chunk = buffer.slice(0, idx);
+      data = buffer.slice(0, idx);
       remaining_buffer = buffer.slice(idx + postfix.length);
       eof = true;
     }
 
-    return { chunk, remaining_buffer, eof };
+    return { data, remaining_buffer, eof };
   }
 
   _transform(
@@ -164,23 +164,29 @@ class HPXTransform extends Transform {
         "Server disconnected for client '" + this._client_name + "'"
       );
     this._buffer = Buffer.concat([this._buffer, chunk]);
-    const { chunk: data, remaining_buffer, eof } = this._end_of_msg(
-      this._buffer
-    );
 
-    if (eof) {
+    let eof = true;
+
+    while (eof && err == null) {
+      const { data, remaining_buffer, eof: eof_ } = this._end_of_msg(
+        this._buffer
+      );
+      eof = eof_;
       this._buffer = remaining_buffer;
 
-      if (data) {
+      if (eof && data.length) {
         zlib.unzip(data, (zip_err, zip_buffer) => {
           if (!zip_err) {
-            callback(err, zip_buffer);
-          } else log.e(zip_err.message);
+            this.push(zip_buffer);
+          } else {
+            log.e(zip_err.message);
+            err = zip_err;
+          }
         });
-      } else callback(err);
-    } else {
-      callback(err);
+      }
     }
+
+    callback(err);
   }
 }
 
@@ -211,8 +217,8 @@ export class Client {
   name: string;
   _id_counter: number;
   _alive: boolean;
+  _disconnected: boolean;
   _ready: boolean;
-  _buffer: Buffer;
   session: string;
   _server: [string, number];
   version: Version | null;
@@ -221,12 +227,12 @@ export class Client {
   _last_user: string | null;
   _last_pass: string | null;
   _stream: HPXTransform;
-  timeout: number;
+  _timeout: number;
   _sock: net.Socket | null;
   _connecting: boolean;
   __data_promises_order: (string | number)[];
   __data_promises: {
-    [k: string]: [resolve: (v: any) => void, reject: (v: any) => void];
+    [k: string]: [resolve: (v?: any) => void, reject: (v: any) => void];
   };
 
   /**
@@ -259,8 +265,8 @@ export class Client {
     this.name = name || "js-client";
     this._server = [host || "localhost", port || 7007]; // [host, port]
     this._alive = false;
+    this._disconnected = false; // specifically used by _on_disconnect
     this._ready = false;
-    this._buffer = Buffer.from("", encoding);
     this.session = session_id || "";
     this.version = null;
     this.guest_allowed = false;
@@ -275,7 +281,7 @@ export class Client {
     });
     this._stream.on("data", this._recv.bind(this));
 
-    this.timeout = timeout || 2000;
+    this._timeout = timeout || 5000;
     this._sock = null;
 
     this.__data_promises = {};
@@ -310,8 +316,21 @@ export class Client {
     return this._ready;
   }
 
+  get timeout() {
+    return this._timeout;
+  }
+
+  set timeout(t: number) {
+    this._timeout = t;
+    this._sock?.setTimeout(this._timeout);
+  }
+
   get _connect_msg_id() {
     return this.name + "_connect";
+  }
+
+  get _close_msg_id() {
+    return this.name + "_close";
   }
 
   _next_id() {
@@ -498,13 +517,12 @@ export class Client {
             this._server
           )}`
         );
-        const sess = this.session;
         this._connecting = true;
+        this._disconnected = false;
         this._add_data_promise(this._connect_msg_id, resolve, reject);
         this._sock?.connect(this._server[1], this._server[0], () => {
           this._connecting = false;
           this._alive = true;
-          if (sess) this._accepted = true;
         });
       } else
         reject(
@@ -552,12 +570,20 @@ export class Client {
   }
 
   _on_disconnect() {
+    if (this._disconnected) {
+      return;
+    }
+    this._disconnected = true;
     log.d(
       `Client '${this.name}' disconnected from server at: ${JSON.stringify(
         this._server
       )}`
     );
     this._disconnect();
+    const p = this._get_data_promise(this._close_msg_id);
+    if (p) {
+      p[0]();
+    }
   }
 
   _disconnect() {
@@ -609,8 +635,8 @@ export class Client {
   async _send(msg_bytes: Buffer, msg_id: string | number) {
     let p = new Promise<ServerMsg>((resolve, reject) => {
       if (!this._alive) {
-        throw new ClientError(
-          `Client '${this.name}' is not connected to server`
+        return reject(
+          new ClientError(`Client '${this.name}' is not connected to server`)
         );
       }
 
@@ -637,15 +663,15 @@ export class Client {
   }
 
   _recv(data: Buffer) {
-    if (!this._alive) {
-      return;
-    }
-
     log.d(
       `Client '${
         this.name
       }' recieved ${data.length.toString()} bytes from server`
     );
+
+    if (!this._alive) {
+      return;
+    }
 
     let parsed_data: ServerMsg = JSON.parse(data.toString());
 
@@ -668,9 +694,8 @@ export class Client {
     log.d(`Client '${this.name}' closing connection to server`);
     this._disconnect();
     return new Promise<void>((resolve, reject) => {
-      this._sock?.end(() => {
-        resolve();
-      });
+      this._add_data_promise(this._close_msg_id, resolve, reject);
+      this._sock?.end();
     });
   }
 }
