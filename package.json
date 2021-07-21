@@ -1,6 +1,6 @@
 {
   "name": "happypandax-client",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "description": "A javascript client library for communicating with HappyPanda X servers",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -38,8 +38,8 @@
     "@babel/plugin-proposal-object-rest-spread": "^7.14.7",
     "@babel/preset-env": "^7.14.7",
     "@babel/preset-typescript": "^7.14.5",
-    "@types/node": "^14.14.35",
     "@types/jest": "^26.0.24",
+    "@types/node": "^14.14.35",
     "jest": "^27.0.6",
     "jsdoc-babel": "^0.5.0",
     "jsdoc-to-markdown": "^7.0.1",
