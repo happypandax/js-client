@@ -1,6 +1,7 @@
 import * as net from 'net';
 import { Transform, TransformOptions } from 'stream';
-import * as zlib from 'zlib';
+
+import { Decoder, Encoder } from '@msgpack/msgpack';
 
 const encoding = "utf8";
 
@@ -102,16 +103,9 @@ export function finalize(
   session_id?: string | null,
   name?: string,
   error?: ServerErrorMsg,
-  opts?: Partial<{ to_json: boolean; to_bytes: boolean }>,
   msg_id?: AnyJson
 ) {
   session_id = session_id || "";
-  if (opts === undefined) opts = {};
-
-  let to_json = opts.to_json ?? false;
-
-  const to_bytes = opts.to_bytes ?? false;
-  if (opts.to_bytes === true) to_json = true;
 
   let msg = {
     __id__: msg_id,
@@ -121,10 +115,6 @@ export function finalize(
   } as ServerMsg;
 
   if (error) msg.error = error;
-
-  if (to_json) return JSON.stringify(msg);
-
-  if (to_bytes) return Buffer.from((msg as any) as string, encoding);
 
   return msg;
 }
@@ -175,14 +165,7 @@ class HPXTransform extends Transform {
       this._buffer = remaining_buffer;
 
       if (eof && data.length) {
-        zlib.unzip(data, (zip_err, zip_buffer) => {
-          if (!zip_err) {
-            this.push(zip_buffer);
-          } else {
-            log.e(zip_err.message);
-            err = zip_err;
-          }
-        });
+        this.push(data);
       }
     }
 
@@ -229,6 +212,8 @@ export class Client {
   _stream: HPXTransform;
   _timeout: number;
   _sock: net.Socket | null;
+  _encoder: Encoder;
+  _decoder: Decoder;
   _connecting: boolean;
   __data_promises_order: (string | number)[];
   __data_promises: {
@@ -283,6 +268,17 @@ export class Client {
 
     this._timeout = timeout || 5000;
     this._sock = null;
+    // lol
+    this._encoder = new Encoder(
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      true
+    );
+    this._decoder = new Decoder();
 
     this.__data_promises = {};
     this.__data_promises_order = [];
@@ -602,17 +598,7 @@ export class Client {
   async send(msg: JsonArray) {
     const msg_id = this._next_id();
     return this._send(
-      finalize(
-        msg,
-        this.session,
-        this.name,
-        undefined,
-        {
-          to_bytes: true,
-          to_json: true,
-        },
-        msg_id
-      ) as Buffer,
+      finalize(msg, this.session, this.name, undefined, msg_id) as Buffer,
       msg_id
     );
   }
@@ -629,10 +615,10 @@ export class Client {
     if (!msg.__id__) {
       msg.__id__ = this._next_id();
     }
-    return this._send(Buffer.from(JSON.stringify(msg), encoding), msg.__id__);
+    return this._send(msg, msg.__id__);
   }
 
-  async _send(msg_bytes: Buffer, msg_id: string | number) {
+  async _send(msg_bytes: unknown, msg_id: string | number) {
     let p = new Promise<ServerMsg>((resolve, reject) => {
       if (!this._alive) {
         return reject(
@@ -640,23 +626,22 @@ export class Client {
         );
       }
 
-      log.d(
-        `Client '${
-          this.name
-        }' sending ${msg_bytes.length.toString()} bytes to server ${JSON.stringify(
-          this._server
-        )}`
-      );
-
-      zlib.gzip(msg_bytes, (err, buffer) => {
-        if (!err) {
-          this._sock?.write(buffer);
-          this._sock?.write(postfix);
-        } else {
-          reject(err);
-        }
+      try {
+        const d = this._encoder.encode(msg_bytes);
+        this._sock?.write(d);
+        this._sock?.write(postfix);
         this._add_data_promise(msg_id, resolve, reject);
-      });
+
+        log.d(
+          `Client '${
+            this.name
+          }' sending ${d.length.toString()} bytes to server ${JSON.stringify(
+            this._server
+          )}`
+        );
+      } catch (err) {
+        reject(err);
+      }
     });
 
     return p;
@@ -673,17 +658,35 @@ export class Client {
       return;
     }
 
-    let parsed_data: ServerMsg = JSON.parse(data.toString());
+    let err: unknown | undefined;
+    let parsed_data: ServerMsg | undefined;
+
+    try {
+      parsed_data = this._decoder.decode(data) as ServerMsg;
+    } catch (e) {
+      err = e;
+    }
 
     const connect_p = this._get_data_promise(this._connect_msg_id);
     if (connect_p) {
+      if (err) {
+        return connect_p[1](err);
+      }
+
       this._server_info(parsed_data);
       return connect_p[0](parsed_data);
     }
 
-    const p = this._get_data_promise(parsed_data.__id__);
-    if (p) {
-      return p[0](parsed_data);
+    if (parsed_data) {
+      const p = this._get_data_promise(parsed_data.__id__);
+      if (p) {
+        return p[0](parsed_data);
+      }
+    } else if (err) {
+      const p = this._get_earliest_data_promise();
+      if (p) {
+        return p[1](err);
+      }
     }
   }
   /**

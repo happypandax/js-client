@@ -2,9 +2,11 @@ import inspector from 'inspector';
 
 import Client from '../src/index';
 
+const connect_info = { host: "localhost", port: 7007 };
+
 test("client is able to connect and disconnect", async () => {
   let c = new Client({ name: "my-test-client" });
-  const d = await c.connect({ host: "localhost", port: 7007 });
+  const d = await c.connect(connect_info);
   expect(d).toMatchObject({ data: {}, session: "" });
   expect(c.is_connected()).toBe(true);
   await c.close();
@@ -13,7 +15,7 @@ test("client is able to connect and disconnect", async () => {
 
 test("client is able to perform a handshake", async () => {
   let c = new Client({ name: "my-test-client" });
-  const d = await c.connect({ host: "localhost", port: 7007 }).then((d) => {
+  const d = await c.connect(connect_info).then((d) => {
     return c.handshake({ user: null, password: null });
   });
   expect(d).toBe(true);
@@ -22,7 +24,7 @@ test("client is able to perform a handshake", async () => {
 
 test("client is able to send and receive data", async () => {
   let c = new Client({ name: "my-test-client" });
-  await c.connect({ host: "localhost", port: 7007 }).then((d) => {
+  await c.connect(connect_info).then((d) => {
     return c.handshake({ user: null, password: null });
   });
   const d = await c.send([{ fname: "get_version" }]);
@@ -34,7 +36,7 @@ test(
   "client is able to send and receive data without going out of sync",
   async () => {
     let c = new Client({ name: "my-test-client" });
-    await c.connect({ host: "localhost", port: 7007 }).then((d) => {
+    await c.connect(connect_info).then((d) => {
       return c.handshake({ user: null, password: null });
     });
     const ps = [];
