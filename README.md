@@ -3,6 +3,8 @@
 
 > Note: This is a nodejs module and is not meant to be able to run in a browser!
 
+> Version`>=3.0.0` of this library does not support earlier HPX versions`<=0.13`, please use version`<3.0.0` of this library for that
+
 ## Installing
 
 Install and update npm or yarn

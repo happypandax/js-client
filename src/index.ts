@@ -598,7 +598,7 @@ export class Client {
   async send(msg: JsonArray) {
     const msg_id = this._next_id();
     return this._send(
-      finalize(msg, this.session, this.name, undefined, msg_id) as Buffer,
+      finalize(msg, this.session, this.name, undefined, msg_id),
       msg_id
     );
   }
