@@ -61,21 +61,21 @@ class EError extends Error {
   }
 }
 
-export class ServerError extends EError {}
-export class AuthError extends ServerError {}
-export class AuthWrongCredentialsError extends AuthError {}
-export class AuthRequiredError extends AuthError {}
-export class AuthMissingCredentials extends AuthError {}
-export class ClientError extends ServerError {}
-export class TimoutError extends ClientError {}
-export class ConnectionError extends ClientError {}
-export class ServerDisconnectError extends ConnectionError {}
+export class ServerError extends EError { }
+export class AuthError extends ServerError { }
+export class AuthWrongCredentialsError extends AuthError { }
+export class AuthRequiredError extends AuthError { }
+export class AuthMissingCredentials extends AuthError { }
+export class ClientError extends ServerError { }
+export class TimoutError extends ClientError { }
+export class ConnectionError extends ClientError { }
+export class ServerDisconnectError extends ConnectionError { }
 
 export type AnyJson = boolean | number | string | null | JsonArray | JsonMap;
 export interface JsonMap {
   [key: string]: AnyJson;
 }
-export interface JsonArray extends Array<AnyJson> {}
+export interface JsonArray extends Array<AnyJson> { }
 
 export type Msg = JsonMap;
 
@@ -197,15 +197,21 @@ export type ServerFunctionMsg = {
  * A class representing a HappyPanda X client
  */
 export class Client {
-  name: string;
+  public name: string;
+
+  /**
+   * Whether to resolve localhost to IPv4 (default: true), see https://github.com/nodejs/node/issues/40702
+   */
+  public resolve_IPV4_localhost: boolean;
+  public version: Version | null;
+  public guest_allowed: boolean;
+  public session: string;
+
   _id_counter: number;
   _alive: boolean;
   _disconnected: boolean;
   _ready: boolean;
-  session: string;
   _server: [string, number];
-  version: Version | null;
-  guest_allowed: boolean;
   _accepted: boolean;
   _last_user: string | null;
   _last_pass: string | null;
@@ -253,6 +259,7 @@ export class Client {
     this._disconnected = false; // specifically used by _on_disconnect
     this._ready = false;
     this.session = session_id || "";
+    this.resolve_IPV4_localhost = true; // see https://github.com/nodejs/node/issues/40702
     this.version = null;
     this.guest_allowed = false;
     this._accepted = false;
@@ -516,7 +523,11 @@ export class Client {
         this._connecting = true;
         this._disconnected = false;
         this._add_data_promise(this._connect_msg_id, resolve, reject);
-        this._sock?.connect(this._server[1], this._server[0], () => {
+        let h = this._server[0];
+        if (this.resolve_IPV4_localhost) {
+          if (h === "localhost") h = "127.0.0.1";
+        }
+        this._sock?.connect(this._server[1], h, () => {
           this._connecting = false;
           this._alive = true;
         });
@@ -543,8 +554,7 @@ export class Client {
 
   _on_connect() {
     log.d(
-      `Client '${
-        this.name
+      `Client '${this.name
       }' successfully connected to server at: ${JSON.stringify(this._server)}`
     );
   }
@@ -633,8 +643,7 @@ export class Client {
         this._add_data_promise(msg_id, resolve, reject);
 
         log.d(
-          `Client '${
-            this.name
+          `Client '${this.name
           }' sending ${d.length.toString()} bytes to server ${JSON.stringify(
             this._server
           )}`
@@ -649,8 +658,7 @@ export class Client {
 
   _recv(data: Buffer) {
     log.d(
-      `Client '${
-        this.name
+      `Client '${this.name
       }' recieved ${data.length.toString()} bytes from server`
     );
 
