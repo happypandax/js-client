@@ -207,22 +207,22 @@ export class Client {
   public guest_allowed: boolean;
   public session: string;
 
-  _id_counter: number;
-  _alive: boolean;
-  _disconnected: boolean;
-  _ready: boolean;
-  _server: [string, number];
-  _accepted: boolean;
-  _last_user: string | null;
-  _last_pass: string | null;
-  _stream: HPXTransform;
-  _timeout: number;
-  _sock: net.Socket | null;
-  _encoder: Encoder;
-  _decoder: Decoder;
-  _connecting: boolean;
-  __data_promises_order: (string | number)[];
-  __data_promises: {
+  private _id_counter: number;
+  private _alive: boolean;
+  private _disconnected: boolean;
+  private _ready: boolean;
+  private _server: [string, number];
+  private _accepted: boolean;
+  private _last_user: string | null;
+  private _last_pass: string | null;
+  private _stream: HPXTransform;
+  private _timeout: number;
+  private _sock: net.Socket | null;
+  private _encoder: Encoder;
+  private _decoder: Decoder;
+  private _connecting: boolean;
+  private __data_promises_order: (string | number)[];
+  private __data_promises: {
     [k: string]: [resolve: (v?: any) => void, reject: (v: any) => void];
   };
 
@@ -325,7 +325,7 @@ export class Client {
 
   set timeout(t: number) {
     this._timeout = t;
-    this._sock?.setTimeout(this._timeout);
+    this._sock?.setTimeout(this._timeout, this._on_timeout.bind(this));
   }
 
   get _connect_msg_id() {
@@ -527,10 +527,10 @@ export class Client {
         if (this.resolve_IPV4_localhost) {
           if (h === "localhost") h = "127.0.0.1";
         }
-        this._sock?.connect(this._server[1], h, () => {
-          this._connecting = false;
-          this._alive = true;
-        });
+        if (this._sock?.destroyed) {
+          this._create_socket();
+        }
+        this._sock?.connect(this._server[1], h);
       } else
         reject(
           Error(`Client '${this.name}' already connected or trying to connect`)
@@ -540,7 +540,16 @@ export class Client {
   }
 
   _on_timeout() {
+    this._connecting = false;
     const err = new TimoutError("timeout");
+
+    if (!this._ready) {
+      this._disconnect();
+      this._sock?.destroy(err);
+    }
+
+    log.e(`Client '${this.name}' timed out after ${this.timeout}ms`);
+
     const connect_p = this._get_data_promise(this._connect_msg_id);
     if (connect_p) {
       return connect_p[1](err);
@@ -553,6 +562,9 @@ export class Client {
   }
 
   _on_connect() {
+    this._connecting = false;
+    this._alive = true;
+
     log.d(
       `Client '${this.name
       }' successfully connected to server at: ${JSON.stringify(this._server)}`
@@ -561,6 +573,8 @@ export class Client {
 
   _on_error(error: Error) {
     this._connecting = false;
+    this._disconnect();
+
     log.e(`An error occured in client '${this.name}': ${error.message}`);
     const connect_p = this._get_data_promise(this._connect_msg_id);
     if (connect_p) {
@@ -571,8 +585,6 @@ export class Client {
     if (p) {
       return p[1](error);
     }
-
-    this._disconnect();
   }
 
   _on_disconnect() {
@@ -706,7 +718,22 @@ export class Client {
     this._disconnect();
     return new Promise<void>((resolve, reject) => {
       this._add_data_promise(this._close_msg_id, resolve, reject);
-      this._sock?.end();
+      this._sock?.end(() => {
+
+        setTimeout(() => {
+          if (!this._disconnected) {
+            this._sock?.destroy();
+            this._on_disconnect();
+          }
+          const p = this._get_data_promise(this._close_msg_id);
+          if (p) {
+            return p[0]();
+          }
+        }, 1000)
+
+
+      });
+
     });
   }
 }
