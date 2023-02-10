@@ -2,13 +2,13 @@
 
 > A javascript client library for communicating with HappyPanda X servers
 
-> Note: This is a nodejs module and is not meant to be able to run in a browser!
+> Note: This is a nodejs module and not meant to run in a browser!
 
-> Version`>=3.0.0` of this library does not support earlier HPX versions`<=0.13`, please use version`<3.0.0` of this library for that
+> Version`>=3.0.0` of this library only supports HPX version `>=1.0.0`, please use version`<3.0.0` of this library for HPX `<=0.13`
 
 ## Installing
 
-Install and update npm or yarn
+Install and update with npm or yarn
 
 ```
 $ yarn add happypandax-client
@@ -22,12 +22,16 @@ Get up and running fast:
 import Client from "happypandax-client";
 
 const c = new Client({ name: "my-client" });
-c.connect({ host: "localhost", port: 7007 }).then(function () {
+c.connect({ host: "localhost", port: 7007 }).then(function (msg) {
   c.handshake({ user: null, password: null })
-    .then(function () {
-      c.send([{ fname: "get_version" }]).then(function (data) {
-        console.log(data);
-      });
+    .then(function (success) {
+      if (success) {
+        c.send([{ fname: "get_version" }]).then(function (data) {
+          console.log(data);
+        });
+      } else {
+        console.error("Handshake failed")
+      }
     })
     .finally(() => c.close());
 });
@@ -41,11 +45,16 @@ import Client from "happypandax-client";
 let c = new Client({ name: "my-client" });
 
 async function main() {
-  await c.connect({ host: "localhost", port: 7007 });
-  await c.handshake({ user: null, password: null });
+  const msg = await c.connect({ host: "localhost", port: 7007 });
+  const success = await c.handshake({ user: null, password: null });
 
-  let data = await c.send([{ fname: "get_version" }]);
-  console.log(data);
+  if (success) {
+    let data = await c.send([{ fname: "get_version" }]);
+    console.log(data);
+  } else {
+    console.error("Handshake failed");
+  }
+
   c.close();
 }
 
