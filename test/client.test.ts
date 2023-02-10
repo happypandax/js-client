@@ -65,15 +65,17 @@ test(
 
     c.timeout = 2000
     now = Date.now();
+
+
     await expect(c.connect({ host: "localhost", port: 54321 })).rejects.toThrow("timeout");
     expect(Date.now() - now).toBeGreaterThan(1500);
     expect(Date.now() - now).toBeLessThan(2500);
     expect(c.is_connected()).toBe(false);
 
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
-    await expect(c.connect(connect_info).then((d) => {
-      return c.handshake({ user: null, password: null });
-    })).resolves.toBeTruthy();
+    await expect(c.connect(connect_info)).resolves.toBeTruthy();
+    await expect(c.handshake({ user: null, password: null })).resolves.toEqual(true);
 
     const d = await c.send([{ fname: "get_version" }]);
     expect(d).toMatchObject({ data: [{ fname: "get_version", data: {} }] });
@@ -103,7 +105,7 @@ test(
 
     expect(s2).not.toEqual(s1);
 
-    await c.close(true);
+    await c.close();
   },
   inspector.url() ? 1000 * 60 * 60 : 1000 * 20 //  60 mins if debugging, else 20 secs
 );

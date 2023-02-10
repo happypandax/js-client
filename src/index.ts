@@ -308,7 +308,7 @@ export class Client {
    * @return {boolean}
    */
   alive() {
-    return this._alive;
+    return this._alive && !this._sock?.destroyed;
   }
 
   /**
@@ -555,6 +555,11 @@ export class Client {
       return connect_p[1](err);
     }
 
+    const close_p = this._get_data_promise(this._close_msg_id);
+    if (close_p) {
+      return close_p[1](err);
+    }
+
     const p = this._get_earliest_data_promise();
     if (p) {
       return p[1](err);
@@ -569,6 +574,7 @@ export class Client {
       `Client '${this.name
       }' successfully connected to server at: ${JSON.stringify(this._server)}`
     );
+
   }
 
   _on_error(error: Error) {
