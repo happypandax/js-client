@@ -59,6 +59,10 @@ $ jsdoc2md --separators --configure ./jsdoc2md.json --heading-depth 3 ./src/inde
 
 * [Client](#Client)
     * [new Client(params)](#new_Client_new)
+    * [.timeout](#Client+timeout) ⇒ <code>number</code>
+    * [.on(event, listener)](#Client+on) ⇒ [<code>Client</code>](#Client)
+    * [.once(event, listener)](#Client+once) ⇒ [<code>Client</code>](#Client)
+    * [.off(event, listener)](#Client+off) ⇒ [<code>Client</code>](#Client)
     * [.alive()](#Client+alive) ⇒ <code>boolean</code>
     * [.ready()](#Client+ready) ⇒ <code>boolean</code>
     * [.set_server(host, port)](#Client+set_server)
@@ -89,6 +93,60 @@ $ jsdoc2md --separators --configure ./jsdoc2md.json --heading-depth 3 ./src/inde
 | [params.password] | <code>string</code> |  | <p>password</p> |
 | [params.session_id] | <code>string</code> |  | <p>a server session id</p> |
 | [params.timeout] | <code>integer</code> |  | <p>connection timeout</p> |
+
+
+* * *
+
+<a name="Client+timeout"></a>
+
+#### client.timeout ⇒ <code>number</code>
+<p>Get the timeout value</p>
+
+**Kind**: instance property of [<code>Client</code>](#Client)  
+
+* * *
+
+<a name="Client+on"></a>
+
+#### client.on(event, listener) ⇒ [<code>Client</code>](#Client)
+<p>Add a listener to the underlying socket</p>
+
+**Kind**: instance method of [<code>Client</code>](#Client)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| event | <code>string</code> | <p>event name</p> |
+| listener | <code>function</code> | <p>listener function</p> |
+
+
+* * *
+
+<a name="Client+once"></a>
+
+#### client.once(event, listener) ⇒ [<code>Client</code>](#Client)
+<p>Add a listener to the underlying socket</p>
+
+**Kind**: instance method of [<code>Client</code>](#Client)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| event | <code>string</code> | <p>event name</p> |
+| listener | <code>function</code> | <p>listener function</p> |
+
+
+* * *
+
+<a name="Client+off"></a>
+
+#### client.off(event, listener) ⇒ [<code>Client</code>](#Client)
+<p>Remove a listener from the underlying socket</p>
+
+**Kind**: instance method of [<code>Client</code>](#Client)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| event | <code>string</code> | <p>event name</p> |
+| listener | <code>function</code> | <p>listener function</p> |
 
 
 * * *
@@ -405,4 +463,4 @@ $ jsdoc2md --separators --configure ./jsdoc2md.json --heading-depth 3 ./src/inde
 
 * * *
 
-Done in 4.14s.
+Done in 2.81s.

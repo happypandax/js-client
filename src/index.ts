@@ -396,7 +396,7 @@ export class Client {
     this._create_socket();
   }
 
-  _create_socket() {
+  private _create_socket() {
     this._sock = new net.Socket();
     this._sock.setTimeout(this.timeout, this._on_timeout.bind(this));
     this._sock.on("data", (data) => this._stream.write(data));
@@ -404,6 +404,39 @@ export class Client {
     this._sock.on("close", this._on_disconnect.bind(this));
     this._sock.on("end", this._on_disconnect.bind(this));
     this._sock.on("error", this._on_error.bind(this));
+  }
+
+  /**
+   *  Add a listener to the underlying socket
+   * @param  {string} event - event name
+   * @param  {Function} listener - listener function
+   * @return {Client}
+   */
+  on(...args: Parameters<net.Socket["on"]>) {
+    this._sock?.on(...args);
+    return this;
+  }
+
+  /**
+   * Add a listener to the underlying socket
+   * @param  {string} event - event name
+   * @param  {Function} listener - listener function
+   * @return {Client}
+   */
+  once(...args: Parameters<net.Socket["once"]>) {
+    this._sock?.once(...args);
+    return this;
+  }
+
+  /**
+   * Remove a listener from the underlying socket
+   * @param  {string} event - event name
+   * @param  {Function} listener - listener function
+   * @return {Client}
+   */
+  off(...args: Parameters<net.Socket["off"]>) {
+    this._sock?.off(...args);
+    return this;
   }
 
   /**
@@ -422,6 +455,10 @@ export class Client {
     return this._ready;
   }
 
+  /**
+   * Get the timeout value
+   * @return {number}
+   */
   get timeout() {
     return this._timeout;
   }
@@ -431,20 +468,20 @@ export class Client {
     this._sock?.setTimeout(this._timeout, this._on_timeout.bind(this));
   }
 
-  get _connect_msg_id() {
+  private get _connect_msg_id() {
     return this.name + "_connect";
   }
 
-  get _close_msg_id() {
+  private get _close_msg_id() {
     return this.name + "_close";
   }
 
-  _next_id() {
+  private _next_id() {
     this._id_counter = (this._id_counter + 1) % 99999;
     return this.name + "_msg_" + this._id_counter;
   }
 
-  _add_data_promise(
+  private _add_data_promise(
     msg_id: string | number,
     resolve: (v: any) => void,
     reject: (v: any) => void
@@ -453,7 +490,7 @@ export class Client {
     this.__data_promises_order.push(msg_id);
   }
 
-  _get_data_promise(msg_id: string | number | undefined) {
+  private _get_data_promise(msg_id: string | number | undefined) {
     if (!msg_id) return;
     const v = this.__data_promises[msg_id];
     if (v) {
@@ -466,7 +503,7 @@ export class Client {
     return v;
   }
 
-  _get_earliest_data_promise() {
+  private _get_earliest_data_promise() {
     const msg_id = this.__data_promises_order.shift();
     if (msg_id) {
       const v = this.__data_promises[msg_id];
@@ -477,7 +514,7 @@ export class Client {
     }
   }
 
-  _server_info(data?: Msg) {
+  private _server_info(data?: Msg) {
     if (data) {
       let serv_data = data.data as Msg;
       if (serv_data && serv_data.hasOwnProperty("version")) {
@@ -661,7 +698,7 @@ export class Client {
     return p;
   }
 
-  _on_timeout() {
+  private _on_timeout() {
     this._connecting = false;
     const err = new TimeoutError("timeout");
 
@@ -688,7 +725,7 @@ export class Client {
     }
   }
 
-  _on_connect() {
+  private _on_connect() {
     this._connecting = false;
     this._alive = true;
 
@@ -699,7 +736,7 @@ export class Client {
 
   }
 
-  _on_error(error: Error) {
+  private _on_error(error: Error) {
     this._connecting = false;
     this._disconnect();
 
@@ -715,7 +752,7 @@ export class Client {
     }
   }
 
-  _on_disconnect() {
+  private _on_disconnect() {
     if (this._disconnected) {
       return;
     }
@@ -732,7 +769,7 @@ export class Client {
     }
   }
 
-  _disconnect() {
+  private _disconnect() {
     this._alive = false;
     this._accepted = false;
     this.session = "";
@@ -768,7 +805,7 @@ export class Client {
     return this._send(msg, msg.__id__);
   }
 
-  async _send(msg_bytes: unknown, msg_id: string | number) {
+  private async _send(msg_bytes: unknown, msg_id: string | number) {
     let p = new Promise<ServerMsg>((resolve, reject) => {
       if (!this._alive) {
         return reject(
@@ -796,7 +833,7 @@ export class Client {
     return p;
   }
 
-  _recv(data: Buffer) {
+  private _recv(data: Buffer) {
     log.d(
       `Client '${this.name
       }' recieved ${data.length.toString()} bytes from server`
