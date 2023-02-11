@@ -7,7 +7,7 @@ const encoding = "utf8";
 
 const postfix = Buffer.from("<EOF>", encoding);
 
-const exception_codes = {
+export const exception_codes = {
   AuthRequiredError: 407,
   AuthWrongCredentialsError: 411,
   AuthMissingCredentials: 412,
@@ -25,24 +25,36 @@ export interface CustomLogger {
   error: (m: string) => void;
 }
 
+/**
+ * The logger
+ * @group Logging
+ */
 export const log = {
+  /**
+   * Enable or disable logging
+   */
   enabled: true,
+
+  /**
+   * Can be set to a custom logger that will be used instead of console
+   */
   logger: (undefined as any) as CustomLogger,
+
   d: function (msg: string) {
     if (!this.enabled) return;
     this.logger ? this.logger.debug(msg) : console.debug(msg);
   },
   i: function (msg: string) {
     if (!this.enabled) return;
-    this.logger ? this.logger.debug(msg) : console.info(msg);
+    this.logger ? this.logger.info(msg) : console.info(msg);
   },
   w: function (msg: string) {
     if (!this.enabled) return;
-    this.logger ? this.logger.debug(msg) : console.warn(msg);
+    this.logger ? this.logger.warning(msg) : console.warn(msg);
   },
   e: function (msg: string) {
     if (!this.enabled) return;
-    this.logger ? this.logger.debug(msg) : console.error(msg);
+    this.logger ? this.logger.error(msg) : console.error(msg);
   },
 };
 
@@ -61,14 +73,67 @@ class EError extends Error {
   }
 }
 
+/**
+ * Base class for all server errors
+ * @extends Error
+ * @category Errors
+*/
 export class ServerError extends EError { }
+
+/**
+ * Base class for all authentication errors
+ * @extends ServerError
+ * @category Errors
+ */
 export class AuthError extends ServerError { }
+
+/**
+ * Wrong credentials error
+ * @extends AuthError
+ * @category Errors
+ */
 export class AuthWrongCredentialsError extends AuthError { }
+
+/**
+ * Authentication required error
+ * @extends AuthError
+ * @category Errors
+ */
 export class AuthRequiredError extends AuthError { }
+
+/**
+ * Missing credentials error
+ * @extends AuthError
+ * @category Errors
+ */
 export class AuthMissingCredentials extends AuthError { }
+
+/**
+ * Base class for all client errors
+ * @extends ServerError
+ * @category Errors
+ */
 export class ClientError extends ServerError { }
+
+/**
+ * Timeout error
+ * @extends ClientError
+ * @category Errors
+ */
 export class TimoutError extends ClientError { }
+
+/**
+ * Base class for all connection errors
+ * @extends ClientError
+ * @category Errors
+ */
 export class ConnectionError extends ClientError { }
+
+/**
+ * Server disconnect error
+ * @extends ConnectionError
+ * @category Errors
+ */
 export class ServerDisconnectError extends ConnectionError { }
 
 export type AnyJson = boolean | number | string | null | JsonArray | JsonMap;
