@@ -574,13 +574,14 @@ export class Client {
 
     return false;
   }
+
   /**
-   * Basically a re-login
+   * Forces client to request a new handshake, but doesn't invalidate previous session
    * @category async
    * @param  {boolean} ignore_err - ignore error
    * @returns {Promise}
    */
-  async request_auth(ignore_err?: boolean) {
+  async request_auth() {
     let data = await this.send([
       {
         session: "",
@@ -589,12 +590,29 @@ export class Client {
       },
     ]);
     this._server_info(data);
-    await this.handshake({
-      user: this._last_user,
-      password: this._last_pass || undefined,
-      ignore_err: ignore_err,
-    });
+    this.session = ""
+    this._accepted = false;
   }
+
+  /**
+   * Logout and invalidates the session
+   * @category async
+   * @param  {boolean} ignore_err - ignore error
+   * @returns {Promise}
+   */
+  async drop_auth() {
+    let data = await this.send([
+      {
+        session: "",
+        name: this.name,
+        data: "dropauth",
+      },
+    ]);
+    this._server_info(data);
+    this.session = ""
+    this._accepted = false;
+  }
+
   /**
    * Check if the client is still connected to the server
    * @return {boolean}
@@ -602,6 +620,7 @@ export class Client {
   is_connected() {
     return this.alive();
   }
+
   /**
    * Connect to HPX server
    * @category async
