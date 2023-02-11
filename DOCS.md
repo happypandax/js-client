@@ -24,7 +24,7 @@ $ jsdoc2md --separators --configure ./jsdoc2md.json --heading-depth 3 ./src/inde
 <dd><p>Base class for all client errors</p></dd>
 <dt><a href="#ClientError">ClientError</a> ⇐ <code><a href="#ClientError">ClientError</a></code></dt>
 <dd><p>Timeout error</p></dd>
-<dt><a href="#TimoutError">TimoutError</a> ⇐ <code><a href="#ClientError">ClientError</a></code></dt>
+<dt><a href="#TimeoutError">TimeoutError</a> ⇐ <code><a href="#ClientError">ClientError</a></code></dt>
 <dd><p>Base class for all connection errors</p></dd>
 <dt><a href="#ConnectionError">ConnectionError</a> ⇐ <code><a href="#ConnectionError">ConnectionError</a></code></dt>
 <dd><p>Server disconnect error</p></dd>
@@ -67,6 +67,7 @@ $ jsdoc2md --separators --configure ./jsdoc2md.json --heading-depth 3 ./src/inde
     * _async_
         * [.handshake(params)](#Client+handshake) ⇒ <code>Promise</code>
         * [.request_auth(ignore_err)](#Client+request_auth) ⇒ <code>Promise</code>
+        * [.drop_auth(ignore_err)](#Client+drop_auth) ⇒ <code>Promise</code>
         * [.connect(params)](#Client+connect) ⇒ <code>Promise</code>
         * [.send(msg)](#Client+send) ⇒ <code>Promise</code>
         * [.send_raw(msg)](#Client+send_raw) ⇒ <code>Promise</code>
@@ -168,7 +169,22 @@ $ jsdoc2md --separators --configure ./jsdoc2md.json --heading-depth 3 ./src/inde
 <a name="Client+request_auth"></a>
 
 #### client.request\_auth(ignore_err) ⇒ <code>Promise</code>
-<p>Basically a re-login</p>
+<p>Forces client to request a new handshake, but doesn't invalidate previous session</p>
+
+**Kind**: instance method of [<code>Client</code>](#Client)  
+**Category**: async  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| ignore_err | <code>boolean</code> | <p>ignore error</p> |
+
+
+* * *
+
+<a name="Client+drop_auth"></a>
+
+#### client.drop\_auth(ignore_err) ⇒ <code>Promise</code>
+<p>Logout and invalidates the session</p>
 
 **Kind**: instance method of [<code>Client</code>](#Client)  
 **Category**: async  
@@ -367,9 +383,9 @@ $ jsdoc2md --separators --configure ./jsdoc2md.json --heading-depth 3 ./src/inde
 
 * * *
 
-<a name="TimoutError"></a>
+<a name="TimeoutError"></a>
 
-### TimoutError ⇐ [<code>ClientError</code>](#ClientError)
+### TimeoutError ⇐ [<code>ClientError</code>](#ClientError)
 <p>Base class for all connection errors</p>
 
 **Kind**: global variable  
@@ -389,4 +405,4 @@ $ jsdoc2md --separators --configure ./jsdoc2md.json --heading-depth 3 ./src/inde
 
 * * *
 
-Done in 2.83s.
+Done in 4.14s.
