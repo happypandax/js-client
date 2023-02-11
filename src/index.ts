@@ -603,7 +603,7 @@ export class Client {
   async drop_auth() {
     let data = await this.send([
       {
-        session: "",
+        session: this.session,
         name: this.name,
         data: "dropauth",
       },
