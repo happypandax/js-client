@@ -1,5 +1,6 @@
 import * as net from 'net';
 import { Transform, TransformOptions } from 'stream';
+import { CustomError } from 'ts-custom-error';
 
 import { Decoder, Encoder } from '@msgpack/msgpack';
 
@@ -58,18 +59,13 @@ export const log = {
   },
 };
 
-class EError extends Error {
+class EError extends CustomError {
   code: number;
 
   constructor(message: string) {
     super(message);
-    this.name = this.constructor.name;
-    if (typeof Error.captureStackTrace === "function") {
-      Error.captureStackTrace(this, this.constructor);
-    } else {
-      this.stack = new Error(message).stack;
-    }
     this.code = exception_codes[this.name as keyof typeof exception_codes];
+    Object.defineProperty(this, 'name', { value: 'EError' })
   }
 }
 
@@ -78,56 +74,98 @@ class EError extends Error {
  * @extends Error
  * @category Errors
 */
-export class ServerError extends EError { }
+export class ServerError extends EError {
+
+  constructor(message: string) {
+    super(message);
+    Object.defineProperty(this, 'name', { value: 'ServerError' })
+  }
+
+}
 
 /**
  * Base class for all authentication errors
  * @extends ServerError
  * @category Errors
  */
-export class AuthError extends ServerError { }
+export class AuthError extends ServerError {
+  constructor(message: string) {
+    super(message);
+    Object.defineProperty(this, 'name', { value: 'AuthError' })
+  }
+}
 
 /**
  * Wrong credentials error
  * @extends AuthError
  * @category Errors
  */
-export class AuthWrongCredentialsError extends AuthError { }
+export class AuthWrongCredentialsError extends AuthError {
+  constructor(message: string) {
+    super(message);
+    Object.defineProperty(this, 'name', { value: 'AuthWrongCredentialsError' })
+  }
+}
 
 /**
  * Authentication required error
  * @extends AuthError
  * @category Errors
  */
-export class AuthRequiredError extends AuthError { }
+export class AuthRequiredError extends AuthError {
+  constructor(message: string) {
+    super(message);
+    Object.defineProperty(this, 'name', { value: 'AuthRequiredError' })
+  }
+}
 
 /**
  * Missing credentials error
  * @extends AuthError
  * @category Errors
  */
-export class AuthMissingCredentials extends AuthError { }
+export class AuthMissingCredentials extends AuthError {
+  constructor(message: string) {
+    super(message);
+    Object.defineProperty(this, 'name', { value: 'AuthMissingCredentials' })
+  }
+}
 
 /**
  * Base class for all client errors
  * @extends ServerError
  * @category Errors
  */
-export class ClientError extends ServerError { }
+export class ClientError extends ServerError {
+  constructor(message: string) {
+    super(message);
+    Object.defineProperty(this, 'name', { value: 'ClientError' })
+  }
+}
 
 /**
  * Timeout error
  * @extends ClientError
  * @category Errors
  */
-export class TimoutError extends ClientError { }
+export class TimeoutError extends ClientError {
+  constructor(message: string) {
+    super(message);
+    Object.defineProperty(this, 'name', { value: 'TimoutError' })
+  }
+}
 
 /**
  * Base class for all connection errors
  * @extends ClientError
  * @category Errors
  */
-export class ConnectionError extends ClientError { }
+export class ConnectionError extends ClientError {
+  constructor(message: string) {
+    super(message);
+    Object.defineProperty(this, 'name', { value: 'ConnectionError' })
+  }
+}
 
 /**
  * Server disconnect error
@@ -606,7 +644,7 @@ export class Client {
 
   _on_timeout() {
     this._connecting = false;
-    const err = new TimoutError("timeout");
+    const err = new TimeoutError("timeout");
 
     if (!this._ready) {
       this._disconnect();

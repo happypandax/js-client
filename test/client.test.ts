@@ -1,6 +1,11 @@
 import inspector from 'inspector';
 
-import Client, { ServerMsg } from '../src/index';
+import Client, {
+  ClientError,
+  ServerError,
+  ServerMsg,
+  TimeoutError,
+} from '../src/index';
 
 const connect_info = { host: "localhost", port: 7007 };
 
@@ -108,6 +113,25 @@ test(
     await c.close();
   },
   inspector.url() ? 1000 * 60 * 60 : 1000 * 20 //  60 mins if debugging, else 20 secs
+);
+
+
+test(
+  "Error instanceof works",
+  async () => {
+
+    const e = new ServerError("test");
+    expect(e instanceof Error).toBe(true);
+    expect(e instanceof ServerError).toBe(true);
+    expect(e instanceof ClientError).toBe(false);
+
+    const e2 = new ClientError("test");
+    expect(e2 instanceof Error).toBe(true);
+    expect(e2 instanceof ClientError).toBe(true);
+    expect(e2 instanceof ServerError).toBe(true);
+    expect(e2 instanceof TimeoutError).toBe(false);
+
+  },
 );
 
 
