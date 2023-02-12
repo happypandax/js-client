@@ -32,7 +32,7 @@ test("client is able to send and receive data", async () => {
   await c.connect(connect_info).then((d) => {
     return c.handshake({ user: null, password: null });
   });
-  const d = await c.send([{ fname: "get_version" }]);
+  const d = await c.send('call', [{ fname: "get_version" }]);
   expect(d).toMatchObject({ data: [{ fname: "get_version", data: {} }] });
   await c.close();
 });
@@ -46,9 +46,9 @@ test(
     });
     const ps: Promise<ServerMsg<'call'>>[] = [];
     for (let i = 0; i < 100; i++) {
-      ps.push(c.send([{ fname: "get_version" }]));
+      ps.push(c.send('call', [{ fname: "get_version" }]));
     }
-    const d = await c.send([{ fname: "get_version" }]);
+    const d = await c.send('call', [{ fname: "get_version" }]);
     expect(d).toMatchObject({ data: [{ fname: "get_version", data: {} }] });
     await c.close();
   },
@@ -82,7 +82,7 @@ test(
     await expect(c.connect(connect_info)).resolves.toBeTruthy();
     await expect(c.handshake({ user: null, password: null })).resolves.toEqual(true);
 
-    const d = await c.send([{ fname: "get_version" }]);
+    const d = await c.send('call', [{ fname: "get_version" }]);
     expect(d).toMatchObject({ data: [{ fname: "get_version", data: {} }] });
     await c.close();
   },

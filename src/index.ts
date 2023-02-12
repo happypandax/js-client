@@ -706,12 +706,22 @@ export class Client {
   /**
    * Call a single function, this is even more of a shortcut than send
    * @category async
+   * @param  {ClientMsg<'call'>['data']} data - data
+   * @returns {Promise}
+   */
+  async call(data: ClientMsg<'call'>['data']) {
+    return await this.send('call', data);
+  }
+
+  /**
+   * Call a single function, this is even more of a shortcut than send
+   * @category async
    * @param  {string} fname - function name
    * @param  [args] {object} - function arguments
    * @returns {Promise}
    */
   async call_function(fname: string, args?: Record<string, AnyJson>) {
-    return await this.send([{ fname, ...args }], 'call');
+    return await this.send('call', [{ fname, ...args }]);
   }
 
   /**
@@ -845,7 +855,7 @@ export class Client {
    * @returns {Promise}
    * @fullfil {Object} - message from server
    */
-  async send<C extends ServerCommand>(data: ClientMsg<C>["data"], command: C = 'call' as C) {
+  async send<C extends ServerCommand>(command: C, data: ClientMsg<C>["data"]) {
     const msg_id = this._next_id();
     return this._send<C>(
       finalize(command, data, this.session, this.name, msg_id),
