@@ -44,7 +44,7 @@ test(
     await c.connect(connect_info).then((d) => {
       return c.handshake({ user: null, password: null });
     });
-    const ps: Promise<ServerMsg>[] = [];
+    const ps: Promise<ServerMsg<'call'>>[] = [];
     for (let i = 0; i < 100; i++) {
       ps.push(c.send([{ fname: "get_version" }]));
     }

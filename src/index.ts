@@ -39,7 +39,7 @@ export const log = {
   /**
    * Can be set to a custom logger that will be used instead of console
    */
-  logger: (undefined as any) as CustomLogger,
+  logger: undefined as any as CustomLogger,
 
   d: function (msg: string) {
     if (!this.enabled) return;
@@ -65,7 +65,7 @@ class EError extends CustomError {
   constructor(message: string) {
     super(message);
     this.code = exception_codes[this.name as keyof typeof exception_codes];
-    Object.defineProperty(this, 'name', { value: 'EError' })
+    Object.defineProperty(this, "name", { value: "EError" });
   }
 }
 
@@ -73,14 +73,12 @@ class EError extends CustomError {
  * Base class for all server errors
  * @extends Error
  * @category Errors
-*/
+ */
 export class ServerError extends EError {
-
   constructor(message: string) {
     super(message);
-    Object.defineProperty(this, 'name', { value: 'ServerError' })
+    Object.defineProperty(this, "name", { value: "ServerError" });
   }
-
 }
 
 /**
@@ -91,7 +89,7 @@ export class ServerError extends EError {
 export class AuthError extends ServerError {
   constructor(message: string) {
     super(message);
-    Object.defineProperty(this, 'name', { value: 'AuthError' })
+    Object.defineProperty(this, "name", { value: "AuthError" });
   }
 }
 
@@ -103,7 +101,7 @@ export class AuthError extends ServerError {
 export class AuthWrongCredentialsError extends AuthError {
   constructor(message: string) {
     super(message);
-    Object.defineProperty(this, 'name', { value: 'AuthWrongCredentialsError' })
+    Object.defineProperty(this, "name", { value: "AuthWrongCredentialsError" });
   }
 }
 
@@ -115,7 +113,7 @@ export class AuthWrongCredentialsError extends AuthError {
 export class AuthRequiredError extends AuthError {
   constructor(message: string) {
     super(message);
-    Object.defineProperty(this, 'name', { value: 'AuthRequiredError' })
+    Object.defineProperty(this, "name", { value: "AuthRequiredError" });
   }
 }
 
@@ -127,7 +125,7 @@ export class AuthRequiredError extends AuthError {
 export class AuthMissingCredentials extends AuthError {
   constructor(message: string) {
     super(message);
-    Object.defineProperty(this, 'name', { value: 'AuthMissingCredentials' })
+    Object.defineProperty(this, "name", { value: "AuthMissingCredentials" });
   }
 }
 
@@ -139,7 +137,7 @@ export class AuthMissingCredentials extends AuthError {
 export class ClientError extends ServerError {
   constructor(message: string) {
     super(message);
-    Object.defineProperty(this, 'name', { value: 'ClientError' })
+    Object.defineProperty(this, "name", { value: "ClientError" });
   }
 }
 
@@ -151,7 +149,7 @@ export class ClientError extends ServerError {
 export class TimeoutError extends ClientError {
   constructor(message: string) {
     super(message);
-    Object.defineProperty(this, 'name', { value: 'TimoutError' })
+    Object.defineProperty(this, "name", { value: "TimoutError" });
   }
 }
 
@@ -163,7 +161,7 @@ export class TimeoutError extends ClientError {
 export class ConnectionError extends ClientError {
   constructor(message: string) {
     super(message);
-    Object.defineProperty(this, 'name', { value: 'ConnectionError' })
+    Object.defineProperty(this, "name", { value: "ConnectionError" });
   }
 }
 
@@ -175,12 +173,30 @@ export class ConnectionError extends ClientError {
 export class ServerDisconnectError extends ConnectionError { }
 
 export type AnyJson = boolean | number | string | null | JsonArray | JsonMap;
-export interface JsonMap {
+
+export type JsonMap = {
   [key: string]: AnyJson;
 }
-export interface JsonArray extends Array<AnyJson> { }
+export type JsonArray = AnyJson[];
 
 export type Msg = JsonMap;
+
+// See https://github.com/microsoft/TypeScript/issues/1897#issuecomment-424163618
+export type JsonMapCompatible<TKeys extends string = string> = { [Key in TKeys]: AnyJson };
+
+export type ServerCommand =
+  | "handshake"
+  | "call"
+  | "requestauth"
+  | "dropauth"
+  | "serverquit"
+  | "serverrestart"
+  | 1
+  | 2
+  | 3
+  | 4
+  | 5
+  | 6;
 
 /**
  * A helper function that will wrap your message up like this:
@@ -188,36 +204,33 @@ export type Msg = JsonMap;
  * msg = {
  *      'session': session_id,
  *      'name': name,
+ *      'command': command, <--- your command is put here
  *      'data': data, # <--- your message is put here
  *   }
  * ```
- * @param  {AnyJson} msg_dict - message to wrap
+ * @param  {ServerCommand} command - message to wrap
+ * @param  {AnyJson} data - message to wrap
  * @param  {string} session_id - optional, session id
  * @param  {string} name - name of client
- * @param  {ServerError} error - error message object to include in the final message
- * @param  {Object} opts - optional options
- * @param  [opts.to_json] {boolean} - convert the final message to json string
- * @param  [opts.to_bytes] {boolean} - convert the final message to bytes buffer
  * @param  {AnyJson} msg_id - optional message id
- * @return {ServerMsg|string|Buffer}
+ * @return {ServerMsg}
  */
-export function finalize(
-  msg_dict: AnyJson,
+export function finalize<C extends ServerCommand>(
+  command: C,
+  data: ClientMsg<C>["data"],
   session_id?: string | null,
   name?: string,
-  error?: ServerErrorMsg,
-  msg_id?: AnyJson
+  msg_id?: ClientMsg<C>["__id__"]
 ) {
   session_id = session_id || "";
 
-  let msg = {
+  let msg: ClientMsg<C> = {
     __id__: msg_id,
+    command,
     session: session_id,
     name: name ? name : "js-client",
-    data: msg_dict,
-  } as ServerMsg;
-
-  if (error) msg.error = error;
+    data,
+  };
 
   return msg;
 }
@@ -261,9 +274,11 @@ class HPXTransform extends Transform {
     let eof = true;
 
     while (eof && err == null) {
-      const { data, remaining_buffer, eof: eof_ } = this._end_of_msg(
-        this._buffer
-      );
+      const {
+        data,
+        remaining_buffer,
+        eof: eof_,
+      } = this._end_of_msg(this._buffer);
       eof = eof_;
       this._buffer = remaining_buffer;
 
@@ -283,17 +298,55 @@ type Version = {
 };
 
 export type ServerErrorMsg = { code: number; msg: string };
-export type ServerMsg = {
+
+export interface ClientMsgBase<D = AnyJson> {
+  __id__?: string | number;
+  session: string;
+  command: ServerCommand | AnyJson;
+  name: string;
+  data?: D;
+}
+
+export interface ClientMsg<C extends ServerCommand = "call"> extends ClientMsgBase {
+  command: C;
+  data: C extends "call"
+  ? ClientFunctionMsg[]
+  : C extends "handshake"
+  ? { username: string; password: string } | {} | undefined
+  : AnyJson;
+}
+
+type ServerInfo = { version: Version; guest_allowed: boolean }
+
+export interface ServerMsgBase<D = AnyJson> {
   __id__?: string | number;
   session: string;
   name: string;
-  data: AnyJson;
+  data: D;
   error?: ServerErrorMsg;
-};
+}
+
+export interface ServerMsg<C extends ServerCommand> extends ServerMsgBase {
+  data: C extends "call"
+  ? ServerFunctionMsg[]
+  : C extends "handshake"
+  ? "Authenticated" | null
+  : C extends "requestauth" | "dropauth"
+  ? ServerInfo | null
+  : C extends "serverquit" | "serverrestart"
+  ? "ok" | null
+  : AnyJson;
+}
+
 export type ServerFunctionMsg = {
   fname: string;
   data: AnyJson;
   error?: ServerErrorMsg;
+};
+
+export type ClientFunctionMsg = {
+  fname: string;
+  [arg: string]: AnyJson;
 };
 
 /**
@@ -315,7 +368,6 @@ export class Client {
   private _disconnected: boolean;
   private _ready: boolean;
   private _server: [string, number];
-  private _accepted: boolean;
   private _last_user: string | null;
   private _last_pass: string | null;
   private _stream: HPXTransform;
@@ -365,7 +417,6 @@ export class Client {
     this.resolve_IPV4_localhost = true; // see https://github.com/nodejs/node/issues/40702
     this.version = null;
     this.guest_allowed = false;
-    this._accepted = false;
     this._id_counter = 0;
 
     this._last_user = user ?? "";
@@ -514,12 +565,12 @@ export class Client {
     }
   }
 
-  private _server_info(data?: Msg) {
-    if (data) {
-      let serv_data = data.data as Msg;
-      if (serv_data && serv_data.hasOwnProperty("version")) {
-        this.guest_allowed = (serv_data.guest_allowed as boolean) || false;
-        this.version = serv_data.version as Version;
+  private _server_info(msg?: ServerMsgBase<ServerInfo | null>) {
+    if (msg) {
+      let serv_data = msg?.data;
+      if (serv_data && serv_data?.version) {
+        this.guest_allowed = serv_data.guest_allowed || false;
+        this.version = serv_data.version;
         this._ready = true;
       }
     }
@@ -580,7 +631,7 @@ export class Client {
       );
 
       let data = await this.send_raw(
-        finalize(d, undefined, this.name, undefined) as ServerMsg
+        finalize("handshake", d, undefined, this.name)
       );
 
       if (!ignore_err && data) {
@@ -604,7 +655,6 @@ export class Client {
       let serv_data = data.data;
       if (serv_data === "Authenticated") {
         this.session = data.session as string;
-        this._accepted = true;
         return true;
       }
     }
@@ -615,39 +665,53 @@ export class Client {
   /**
    * Forces client to request a new handshake, but doesn't invalidate previous session
    * @category async
-   * @param  {boolean} ignore_err - ignore error
    * @returns {Promise}
    */
   async request_auth() {
-    let data = await this.send([
-      {
-        session: "",
-        name: this.name,
-        data: "requestauth",
-      },
-    ]);
+    let data = await this.send_raw(finalize("requestauth", null, undefined, this.name));
+
     this._server_info(data);
-    this.session = ""
-    this._accepted = false;
+    this.session = "";
   }
 
   /**
    * Logout and invalidates the session
    * @category async
-   * @param  {boolean} ignore_err - ignore error
    * @returns {Promise}
    */
   async drop_auth() {
-    let data = await this.send([
-      {
-        session: this.session,
-        name: this.name,
-        data: "dropauth",
-      },
-    ]);
+    let data = await this.send_raw(finalize("dropauth", null, this.session, this.name));
     this._server_info(data);
-    this.session = ""
-    this._accepted = false;
+    this.session = "";
+  }
+
+  /**
+   * Send the serverquit command
+   * @category async
+   * @returns {Promise}
+   */
+  async server_quit() {
+    return await this.send_raw(finalize("serverquit", null, this.session, this.name));
+  }
+
+  /**
+   * Send the serverrestart command
+   * @category async
+   * @returns {Promise}
+   */
+  async server_restart() {
+    return await this.send_raw(finalize("serverrestart", null, this.session, this.name));
+  }
+
+  /**
+   * Call a single function, this is even more of a shortcut than send
+   * @category async
+   * @param  {string} fname - function name
+   * @param  [args] {object} - function arguments
+   * @returns {Promise}
+   */
+  async call_function(fname: string, args?: Record<string, AnyJson>) {
+    return await this.send([{ fname, ...args }], 'call');
   }
 
   /**
@@ -669,7 +733,7 @@ export class Client {
   async connect(params?: { host?: string; port?: number }) {
     let host = params?.host;
     let port = params?.port;
-    let p = new Promise<undefined | JsonMap>((resolve, reject) => {
+    let p = new Promise<undefined | ServerMsgBase<ServerInfo>>((resolve, reject) => {
       if (!this._alive && !this._connecting) {
         if (host !== undefined && port !== undefined) {
           this._server = [host, port];
@@ -733,7 +797,6 @@ export class Client {
       `Client '${this.name
       }' successfully connected to server at: ${JSON.stringify(this._server)}`
     );
-
   }
 
   private _on_error(error: Error) {
@@ -756,7 +819,6 @@ export class Client {
     if (this._disconnected) {
       return;
     }
-    this._disconnected = true;
     log.d(
       `Client '${this.name}' disconnected from server at: ${JSON.stringify(
         this._server
@@ -771,21 +833,22 @@ export class Client {
 
   private _disconnect() {
     this._alive = false;
-    this._accepted = false;
+    this._disconnected = true;
     this.session = "";
     this._ready = false;
   }
   /**
    * Like {@link send_raw}, but as a convenience, this method will wrap your message into the required message structure HPX expects and automatically sets the session and name
    * @category async
-   * @param  {Array} msg - this is an array of Object's
+   * @param  {JsonMap} data - the data part of the message
+   * @param  {ServerCommand} command - the command, defaults to 'call'
    * @returns {Promise}
    * @fullfil {Object} - message from server
    */
-  async send(msg: JsonArray) {
+  async send<C extends ServerCommand>(data: ClientMsg<C>["data"], command: C = 'call' as C) {
     const msg_id = this._next_id();
-    return this._send(
-      finalize(msg, this.session, this.name, undefined, msg_id),
+    return this._send<C>(
+      finalize(command, data, this.session, this.name, msg_id),
       msg_id
     );
   }
@@ -798,15 +861,15 @@ export class Client {
    * @returns {Promise}
    * @fullfil {Object} - message from server
    */
-  async send_raw(msg: ServerMsg) {
+  async send_raw<C extends ServerCommand>(msg: ClientMsg<C>) {
     if (!msg.__id__) {
       msg.__id__ = this._next_id();
     }
-    return this._send(msg, msg.__id__);
+    return this._send<C>(msg, msg.__id__);
   }
 
-  private async _send(msg_bytes: unknown, msg_id: string | number) {
-    let p = new Promise<ServerMsg>((resolve, reject) => {
+  private async _send<C extends ServerCommand>(msg_bytes: unknown, msg_id: string | number) {
+    let p = new Promise<ServerMsg<C>>((resolve, reject) => {
       if (!this._alive) {
         return reject(
           new ClientError(`Client '${this.name}' is not connected to server`)
@@ -844,10 +907,10 @@ export class Client {
     }
 
     let err: unknown | undefined;
-    let parsed_data: ServerMsg | undefined;
+    let parsed_data: ServerMsg<any> | undefined;
 
     try {
-      parsed_data = this._decoder.decode(data) as ServerMsg;
+      parsed_data = this._decoder.decode(data) as ServerMsg<any>;
     } catch (e) {
       err = e;
     }
@@ -858,7 +921,7 @@ export class Client {
         return connect_p[1](err);
       }
 
-      this._server_info(parsed_data);
+      this._server_info(parsed_data as ServerMsgBase<ServerInfo>);
       return connect_p[0](parsed_data);
     }
 
@@ -884,7 +947,6 @@ export class Client {
     return new Promise<void>((resolve, reject) => {
       this._add_data_promise(this._close_msg_id, resolve, reject);
       this._sock?.end(() => {
-
         setTimeout(() => {
           if (!this._disconnected) {
             this._sock?.destroy();
@@ -894,11 +956,8 @@ export class Client {
           if (p) {
             return p[0]();
           }
-        }, 1000)
-
-
+        }, 1000);
       });
-
     });
   }
 }
